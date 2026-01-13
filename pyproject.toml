@@ -1,0 +1,15 @@
+[project]
+name = "todo-cli"
+version = "0.1.0"
+description = "Phase I Todo CLI Application - In-Memory Python Console App"
+requires-python = ">=3.13"
+dependencies = []
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = []
