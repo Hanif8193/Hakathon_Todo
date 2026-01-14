@@ -61,6 +61,23 @@ cover/
 # UV
 .uv/
 
+# Node.js / Next.js / JavaScript
+node_modules/
+.next/
+out/
+.vercel/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # Project-specific exclusions
 curl
 node

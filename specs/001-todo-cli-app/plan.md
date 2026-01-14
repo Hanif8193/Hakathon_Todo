@@ -15,7 +15,7 @@ Build a command-line todo application in Python that stores tasks in memory. The
 
 **Language/Version**: Python 3.13+
 **Primary Dependencies**: None (Python standard library only)
-**Storage**: In-memory Python dictionary
+**Storage**: In-memory Python dictionaryls
 **Testing**: Manual testing via acceptance scenarios (no automated tests required)
 **Target Platform**: Linux, macOS, Windows (WSL recommended)
 **Project Type**: Single Python console application

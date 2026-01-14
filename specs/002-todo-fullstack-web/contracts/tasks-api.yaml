@@ -1,0 +1,592 @@
+openapi: 3.1.0
+info:
+  title: Todo App - Tasks API
+  version: 1.0.0
+  description: |
+    Task management endpoints for CRUD operations on todo items.
+
+    **Constitutional Compliance**: Phase II - Web Application
+    - All endpoints require JWT authentication (FR-004)
+    - User data isolation enforced (FR-016)
+    - Tasks scoped to authenticated user_id (FR-006)
+
+  contact:
+    name: Todo API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.todo-app.example.com
+    description: Production server (Phase III+)
+
+tags:
+  - name: Tasks
+    description: CRUD operations for user tasks
+
+security:
+  - BearerAuth: []  # All endpoints require JWT authentication
+
+paths:
+  /api/tasks:
+    get:
+      summary: List all tasks for authenticated user
+      description: |
+        Retrieves all tasks owned by the authenticated user, ordered by creation date (newest first).
+
+        **Business Rules**:
+        - Only returns tasks owned by authenticated user (user data isolation)
+        - Empty array returned if user has no tasks
+        - Tasks sorted by created_at descending (newest first)
+
+        **FR-012**: System MUST allow authenticated users to view all their tasks (user-scoped)
+        **FR-016**: System MUST prevent users from accessing or modifying other users' tasks
+
+      operationId: listTasks
+      tags:
+        - Tasks
+
+      responses:
+        '200':
+          description: List of user's tasks (may be empty array)
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - tasks
+                  - count
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  count:
+                    type: integer
+                    description: Total number of tasks
+              examples:
+                withTasks:
+                  summary: User has tasks
+                  value:
+                    tasks:
+                      - id: 1
+                        title: Complete project documentation
+                        description: Write comprehensive docs for Phase II
+                        completed: false
+                        user_id: 1
+                        created_at: "2026-01-14T10:30:00Z"
+                        updated_at: "2026-01-14T10:30:00Z"
+                      - id: 2
+                        title: Review pull request
+                        description: null
+                        completed: true
+                        user_id: 1
+                        created_at: "2026-01-13T15:20:00Z"
+                        updated_at: "2026-01-14T09:15:00Z"
+                    count: 2
+                emptyList:
+                  summary: User has no tasks
+                  value:
+                    tasks: []
+                    count: 0
+
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create a new task
+      description: |
+        Creates a new task for the authenticated user.
+
+        **Business Rules**:
+        - Title is required (1-200 characters)
+        - Description is optional (max 2000 characters)
+        - Task defaults to incomplete (completed: false)
+        - Task is automatically assigned to authenticated user
+
+        **FR-010**: System MUST allow authenticated users to create tasks with title (required) and description (optional)
+        **FR-017**: System MUST assign tasks to the authenticated user who created them
+
+      operationId: createTask
+      tags:
+        - Tasks
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+            examples:
+              withDescription:
+                summary: Task with title and description
+                value:
+                  title: Complete project documentation
+                  description: Write comprehensive docs for Phase II
+              titleOnly:
+                summary: Task with title only
+                value:
+                  title: Review pull request
+
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 1
+                title: Complete project documentation
+                description: Write comprehensive docs for Phase II
+                completed: false
+                user_id: 1
+                created_at: "2026-01-14T10:30:00Z"
+                updated_at: "2026-01-14T10:30:00Z"
+
+        '400':
+          description: Validation error (empty title, title too long)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyTitle:
+                  summary: Title is required
+                  value:
+                    error: Validation error
+                    status: 400
+                    details:
+                      field: title
+                      issue: Title is required and cannot be empty
+                titleTooLong:
+                  summary: Title exceeds max length
+                  value:
+                    error: Validation error
+                    status: 400
+                    details:
+                      field: title
+                      issue: Title must be at most 200 characters
+
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/tasks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Task ID
+        schema:
+          type: integer
+          minimum: 1
+        example: 1
+
+    get:
+      summary: Get task details
+      description: |
+        Retrieves details for a specific task.
+
+        **Business Rules**:
+        - Returns 404 if task doesn't exist OR is owned by another user (hide existence)
+        - Only tasks owned by authenticated user are accessible
+
+        **FR-012**: System MUST allow authenticated users to view all their tasks (user-scoped)
+        **FR-016**: System MUST prevent users from accessing or modifying other users' tasks
+
+      operationId: getTask
+      tags:
+        - Tasks
+
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 1
+                title: Complete project documentation
+                description: Write comprehensive docs for Phase II
+                completed: false
+                user_id: 1
+                created_at: "2026-01-14T10:30:00Z"
+                updated_at: "2026-01-14T10:30:00Z"
+
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+        '404':
+          description: Task not found or not owned by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Task not found
+                status: 404
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update task title and/or description
+      description: |
+        Updates the title and/or description of an existing task.
+
+        **Business Rules**:
+        - Title is required (1-200 characters)
+        - Description is optional (max 2000 characters)
+        - updated_at timestamp is automatically refreshed
+        - Only tasks owned by authenticated user can be updated
+
+        **FR-013**: System MUST allow authenticated users to update task title and description
+        **FR-016**: System MUST prevent users from accessing or modifying other users' tasks
+
+      operationId: updateTask
+      tags:
+        - Tasks
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+            example:
+              title: Complete project documentation (updated)
+              description: Write comprehensive docs for Phase II with examples
+
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 1
+                title: Complete project documentation (updated)
+                description: Write comprehensive docs for Phase II with examples
+                completed: false
+                user_id: 1
+                created_at: "2026-01-14T10:30:00Z"
+                updated_at: "2026-01-14T11:45:00Z"
+
+        '400':
+          description: Validation error (empty title, title too long)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Validation error
+                status: 400
+                details:
+                  field: title
+                  issue: Title is required and cannot be empty
+
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+        '404':
+          description: Task not found or not owned by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Task not found
+                status: 404
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete a task
+      description: |
+        Permanently deletes a task.
+
+        **Business Rules**:
+        - Task is permanently removed from database
+        - Only tasks owned by authenticated user can be deleted
+        - Returns 404 if task doesn't exist or is owned by another user
+
+        **FR-015**: System MUST allow authenticated users to delete their tasks
+        **FR-016**: System MUST prevent users from accessing or modifying other users' tasks
+
+      operationId: deleteTask
+      tags:
+        - Tasks
+
+      responses:
+        '200':
+          description: Task deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+              example:
+                message: Task deleted successfully
+
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+        '404':
+          description: Task not found or not owned by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Task not found
+                status: 404
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/tasks/{id}/complete:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Task ID
+        schema:
+          type: integer
+          minimum: 1
+        example: 1
+
+    patch:
+      summary: Toggle task completion status
+      description: |
+        Toggles the completion status of a task (incomplete ↔ complete).
+
+        **Business Rules**:
+        - If task is incomplete, marks it complete
+        - If task is complete, marks it incomplete
+        - updated_at timestamp is automatically refreshed
+        - Only tasks owned by authenticated user can be toggled
+
+        **FR-014**: System MUST allow authenticated users to toggle task completion status
+        **FR-016**: System MUST prevent users from accessing or modifying other users' tasks
+
+      operationId: toggleTaskCompletion
+      tags:
+        - Tasks
+
+      responses:
+        '200':
+          description: Task completion status toggled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              examples:
+                markedComplete:
+                  summary: Task marked as complete
+                  value:
+                    id: 1
+                    title: Complete project documentation
+                    description: Write comprehensive docs for Phase II
+                    completed: true
+                    user_id: 1
+                    created_at: "2026-01-14T10:30:00Z"
+                    updated_at: "2026-01-14T12:00:00Z"
+                markedIncomplete:
+                  summary: Task marked as incomplete
+                  value:
+                    id: 1
+                    title: Complete project documentation
+                    description: Write comprehensive docs for Phase II
+                    completed: false
+                    user_id: 1
+                    created_at: "2026-01-14T10:30:00Z"
+                    updated_at: "2026-01-14T12:05:00Z"
+
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+        '404':
+          description: Task not found or not owned by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Task not found
+                status: 404
+
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - completed
+        - user_id
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          description: Unique task identifier
+          example: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Task title (required)
+          example: Complete project documentation
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Task description (optional)
+          example: Write comprehensive docs for Phase II
+        completed:
+          type: boolean
+          description: Task completion status
+          example: false
+        user_id:
+          type: integer
+          description: Task owner user ID
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          description: Task creation timestamp (ISO 8601 UTC)
+          example: "2026-01-14T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Task last modification timestamp (ISO 8601 UTC)
+          example: "2026-01-14T10:30:00Z"
+      additionalProperties: false
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Task title (required)
+          example: Complete project documentation
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Task description (optional)
+          example: Write comprehensive docs for Phase II
+      additionalProperties: false
+
+    UpdateTaskRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Updated task title (required)
+          example: Complete project documentation (updated)
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Updated task description (optional)
+          example: Write comprehensive docs for Phase II with examples
+      additionalProperties: false
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - status
+      properties:
+        error:
+          type: string
+          description: User-friendly error message
+          example: Task not found
+        status:
+          type: integer
+          description: HTTP status code
+          example: 404
+        details:
+          type: object
+          description: Additional error context (field-specific validation errors)
+          additionalProperties: true
+          example:
+            field: title
+            issue: Title is required and cannot be empty
+
+  responses:
+    UnauthorizedError:
+      description: Unauthorized - missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingToken:
+              summary: Missing Authorization header
+              value:
+                error: Missing authentication token
+                status: 401
+            invalidToken:
+              summary: Invalid or expired JWT token
+              value:
+                error: Invalid authentication token
+                status: 401
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: An unexpected error occurred
+            status: 500
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from /api/auth/login or /api/auth/signup.
+        Include in Authorization header: `Authorization: Bearer <token>`
+
+        **Token Payload**:
+        ```json
+        {
+          "sub": "user_id",
+          "email": "user@example.com",
+          "exp": 1737198000,
+          "iat": 1737111600
+        }
+        ```
+
+        **FR-004**: System MUST validate JWT tokens on all protected API endpoints
+        **FR-005**: System MUST return 401 Unauthorized for requests with missing or invalid tokens
+        **FR-006**: System MUST extract user_id from validated JWT tokens to enforce data isolation
