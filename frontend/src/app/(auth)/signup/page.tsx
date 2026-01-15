@@ -35,8 +35,8 @@ export default function SignupPage() {
       // Call signup API
       await signup(email, password)
 
-      // Redirect to dashboard on success
-      router.push('/dashboard')
+      // Redirect to dashboard on success (hard redirect to ensure cookie is sent)
+      window.location.href = '/dashboard'
     } catch (err: any) {
       setError(err.message || 'Signup failed. Please try again.')
       setLoading(false)

@@ -38,19 +38,7 @@ export default function DashboardPage() {
       setLoading(true)
       setError(null)
 
-      const response = await apiRequest('/api/tasks')
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token expired or invalid
-          clearToken()
-          router.push('/login')
-          return
-        }
-        throw new Error('Failed to fetch tasks')
-      }
-
-      const data = await response.json()
+      const data = await apiRequest('/api/tasks')
       setTasks(data.tasks || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -65,18 +53,10 @@ export default function DashboardPage() {
   }
 
   const handleCreateTask = async (title: string, description: string | null) => {
-    const response = await apiRequest('/api/tasks', {
+    await apiRequest('/api/tasks', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ title, description }),
     })
-
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.detail || 'Failed to create task')
-    }
 
     // Refresh task list and hide form
     await fetchTasks()
@@ -84,46 +64,28 @@ export default function DashboardPage() {
   }
 
   const handleUpdateTask = async (taskId: number, title: string, description: string | null) => {
-    const response = await apiRequest(`/api/tasks/${taskId}`, {
+    await apiRequest(`/api/tasks/${taskId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ title, description }),
     })
-
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.detail || 'Failed to update task')
-    }
 
     // Refresh task list
     await fetchTasks()
   }
 
   const handleToggleComplete = async (taskId: number) => {
-    const response = await apiRequest(`/api/tasks/${taskId}/complete`, {
+    await apiRequest(`/api/tasks/${taskId}/complete`, {
       method: 'PATCH',
     })
-
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.detail || 'Failed to toggle task completion')
-    }
 
     // Refresh task list
     await fetchTasks()
   }
 
   const handleDeleteTask = async (taskId: number) => {
-    const response = await apiRequest(`/api/tasks/${taskId}`, {
+    await apiRequest(`/api/tasks/${taskId}`, {
       method: 'DELETE',
     })
-
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.detail || 'Failed to delete task')
-    }
 
     // Refresh task list
     await fetchTasks()

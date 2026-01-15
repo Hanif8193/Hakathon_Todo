@@ -21,8 +21,8 @@ export default function LoginPage() {
       // Call login API
       await login(email, password)
 
-      // Redirect to dashboard on success
-      router.push('/dashboard')
+      // Redirect to dashboard on success (hard redirect to ensure cookie is sent)
+      window.location.href = '/dashboard'
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.')
       setLoading(false)
